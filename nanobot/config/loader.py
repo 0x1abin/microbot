@@ -4,12 +4,13 @@ import json
 from pathlib import Path
 from typing import Any
 
+from nanobot.utils.helpers import get_home_path
 from nanobot.config.schema import Config
 
 
 def get_config_path() -> Path:
     """Get the default configuration file path."""
-    return Path.home() / ".nanobot" / "config.json"
+    return get_home_path() / ".nanobot" / "config.json"
 
 
 def get_data_dir() -> Path:
@@ -32,11 +33,11 @@ def load_config(config_path: Path | None = None) -> Config:
     
     if path.exists():
         try:
-            with open(path) as f:
+            with open(str(path)) as f:
                 data = json.load(f)
             data = _migrate_config(data)
-            return Config.model_validate(convert_keys(data))
-        except (json.JSONDecodeError, ValueError) as e:
+            return Config.from_dict(convert_keys(data))
+        except ValueError as e:
             print(f"Warning: Failed to load config from {path}: {e}")
             print("Using default configuration.")
     
@@ -55,7 +56,7 @@ def save_config(config: Config, config_path: Path | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     
     # Convert to camelCase format
-    data = config.model_dump()
+    data = config.to_dict()
     data = convert_to_camel(data)
     
     with open(path, "w") as f:

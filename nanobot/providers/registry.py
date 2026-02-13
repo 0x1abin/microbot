@@ -12,44 +12,115 @@ Every entry writes out all fields so you can copy-paste as a template.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
 
-@dataclass(frozen=True)
 class ProviderSpec:
     """One LLM provider's metadata. See PROVIDERS below for real examples.
 
     Placeholders in env_extras values:
       {api_key}  — the user's API key
       {api_base} — api_base from config, or this spec's default_api_base
+
+    Implemented as plain class with __slots__ for MicroPython compatibility.
     """
 
-    # identity
-    name: str                       # config field name, e.g. "dashscope"
-    keywords: tuple[str, ...]       # model-name keywords for matching (lowercase)
-    env_key: str                    # LiteLLM env var, e.g. "DASHSCOPE_API_KEY"
-    display_name: str = ""          # shown in `nanobot status`
+    __slots__ = (
+        "_name", "_keywords", "_env_key", "_display_name",
+        "_litellm_prefix", "_skip_prefixes", "_env_extras",
+        "_is_gateway", "_is_local", "_detect_by_key_prefix",
+        "_detect_by_base_keyword", "_default_api_base",
+        "_strip_model_prefix", "_model_overrides",
+    )
 
-    # model prefixing
-    litellm_prefix: str = ""                 # "dashscope" → model becomes "dashscope/{model}"
-    skip_prefixes: tuple[str, ...] = ()      # don't prefix if model already starts with these
+    def __init__(
+        self,
+        *,
+        name: str,
+        keywords: tuple[str, ...],
+        env_key: str,
+        display_name: str = "",
+        litellm_prefix: str = "",
+        skip_prefixes: tuple[str, ...] = (),
+        env_extras: tuple[tuple[str, str], ...] = (),
+        is_gateway: bool = False,
+        is_local: bool = False,
+        detect_by_key_prefix: str = "",
+        detect_by_base_keyword: str = "",
+        default_api_base: str = "",
+        strip_model_prefix: bool = False,
+        model_overrides: tuple[tuple[str, dict[str, Any]], ...] = (),
+    ):
+        object.__setattr__(self, "_name", name)
+        object.__setattr__(self, "_keywords", keywords)
+        object.__setattr__(self, "_env_key", env_key)
+        object.__setattr__(self, "_display_name", display_name)
+        object.__setattr__(self, "_litellm_prefix", litellm_prefix)
+        object.__setattr__(self, "_skip_prefixes", skip_prefixes)
+        object.__setattr__(self, "_env_extras", env_extras)
+        object.__setattr__(self, "_is_gateway", is_gateway)
+        object.__setattr__(self, "_is_local", is_local)
+        object.__setattr__(self, "_detect_by_key_prefix", detect_by_key_prefix)
+        object.__setattr__(self, "_detect_by_base_keyword", detect_by_base_keyword)
+        object.__setattr__(self, "_default_api_base", default_api_base)
+        object.__setattr__(self, "_strip_model_prefix", strip_model_prefix)
+        object.__setattr__(self, "_model_overrides", model_overrides)
 
-    # extra env vars, e.g. (("ZHIPUAI_API_KEY", "{api_key}"),)
-    env_extras: tuple[tuple[str, str], ...] = ()
+    @property
+    def name(self) -> str:
+        return self._name
 
-    # gateway / local detection
-    is_gateway: bool = False                 # routes any model (OpenRouter, AiHubMix)
-    is_local: bool = False                   # local deployment (vLLM, Ollama)
-    detect_by_key_prefix: str = ""           # match api_key prefix, e.g. "sk-or-"
-    detect_by_base_keyword: str = ""         # match substring in api_base URL
-    default_api_base: str = ""               # fallback base URL
+    @property
+    def keywords(self) -> tuple[str, ...]:
+        return self._keywords
 
-    # gateway behavior
-    strip_model_prefix: bool = False         # strip "provider/" before re-prefixing
+    @property
+    def env_key(self) -> str:
+        return self._env_key
 
-    # per-model param overrides, e.g. (("kimi-k2.5", {"temperature": 1.0}),)
-    model_overrides: tuple[tuple[str, dict[str, Any]], ...] = ()
+    @property
+    def display_name(self) -> str:
+        return self._display_name
+
+    @property
+    def litellm_prefix(self) -> str:
+        return self._litellm_prefix
+
+    @property
+    def skip_prefixes(self) -> tuple[str, ...]:
+        return self._skip_prefixes
+
+    @property
+    def env_extras(self) -> tuple[tuple[str, str], ...]:
+        return self._env_extras
+
+    @property
+    def is_gateway(self) -> bool:
+        return self._is_gateway
+
+    @property
+    def is_local(self) -> bool:
+        return self._is_local
+
+    @property
+    def detect_by_key_prefix(self) -> str:
+        return self._detect_by_key_prefix
+
+    @property
+    def detect_by_base_keyword(self) -> str:
+        return self._detect_by_base_keyword
+
+    @property
+    def default_api_base(self) -> str:
+        return self._default_api_base
+
+    @property
+    def strip_model_prefix(self) -> bool:
+        return self._strip_model_prefix
+
+    @property
+    def model_overrides(self) -> tuple[tuple[str, dict[str, Any]], ...]:
+        return self._model_overrides
 
     @property
     def label(self) -> str:

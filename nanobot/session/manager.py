@@ -2,37 +2,46 @@
 
 import json
 from pathlib import Path
-from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from loguru import logger
+import logging as logger
 
 from nanobot.utils.helpers import ensure_dir, safe_filename
+from nanobot.utils.helpers import get_home_path
 
 
-@dataclass
 class Session:
     """
     A conversation session.
-    
+
     Stores messages in JSONL format for easy reading and persistence.
     """
-    
-    key: str  # channel:chat_id
-    messages: list[dict[str, Any]] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.now)
-    updated_at: datetime = field(default_factory=datetime.now)
-    metadata: dict[str, Any] = field(default_factory=dict)
-    
+
+    __slots__ = ("key", "messages", "created_at", "updated_at", "metadata")
+
+    def __init__(
+        self,
+        key: str,
+        messages: list | None = None,
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
+        metadata: dict | None = None,
+    ):
+        self.key = key
+        self.messages = list(messages) if messages is not None else []
+        self.created_at = datetime.now() if created_at is None else created_at
+        self.updated_at = datetime.now() if updated_at is None else updated_at
+        self.metadata = dict(metadata) if metadata is not None else {}
+
     def add_message(self, role: str, content: str, **kwargs: Any) -> None:
         """Add a message to the session."""
         msg = {
             "role": role,
             "content": content,
             "timestamp": datetime.now().isoformat(),
-            **kwargs
         }
+        msg.update(kwargs)
         self.messages.append(msg)
         self.updated_at = datetime.now()
     
@@ -67,7 +76,7 @@ class SessionManager:
     
     def __init__(self, workspace: Path):
         self.workspace = workspace
-        self.sessions_dir = ensure_dir(Path.home() / ".nanobot" / "sessions")
+        self.sessions_dir = ensure_dir(get_home_path() / ".nanobot" / "sessions")
         self._cache: dict[str, Session] = {}
     
     def _get_session_path(self, key: str) -> Path:
@@ -97,7 +106,7 @@ class SessionManager:
         self._cache[key] = session
         return session
     
-    def _load(self, key: str) -> Session | None:
+    def _load(self, key: str):
         """Load a session from disk."""
         path = self._get_session_path(key)
         
@@ -109,7 +118,7 @@ class SessionManager:
             metadata = {}
             created_at = None
             
-            with open(path) as f:
+            with open(str(path)) as f:
                 for line in f:
                     line = line.strip()
                     if not line:
@@ -137,7 +146,7 @@ class SessionManager:
         """Save a session to disk."""
         path = self._get_session_path(session.key)
         
-        with open(path, "w") as f:
+        with open(str(path), "w") as f:
             # Write metadata first
             metadata_line = {
                 "_type": "metadata",
@@ -185,7 +194,7 @@ class SessionManager:
         for path in self.sessions_dir.glob("*.jsonl"):
             try:
                 # Read just the metadata line
-                with open(path) as f:
+                with open(str(path)) as f:
                     first_line = f.readline().strip()
                     if first_line:
                         data = json.loads(first_line)

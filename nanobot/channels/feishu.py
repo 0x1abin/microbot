@@ -7,7 +7,7 @@ import threading
 from collections import OrderedDict
 from typing import Any
 
-from loguru import logger
+import logging as logger
 
 from nanobot.bus.events import OutboundMessage
 from nanobot.bus.queue import MessageBus

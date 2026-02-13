@@ -50,16 +50,21 @@ class LiteLLMProvider(LLMProvider):
         litellm.drop_params = True
     
     def _setup_env(self, api_key: str, api_base: str | None, model: str) -> None:
-        """Set environment variables based on detected provider."""
+        """Set environment variables based on detected provider.
+        No-op when os.environ is not available (e.g. MicroPython)."""
+        environ = getattr(os, "environ", None)
+        if environ is None:
+            return
+
         spec = self._gateway or find_by_model(model)
         if not spec:
             return
 
         # Gateway/local overrides existing env; standard provider doesn't
         if self._gateway:
-            os.environ[spec.env_key] = api_key
+            environ[spec.env_key] = api_key
         else:
-            os.environ.setdefault(spec.env_key, api_key)
+            environ.setdefault(spec.env_key, api_key)
 
         # Resolve env_extras placeholders:
         #   {api_key}  → user's API key
@@ -68,7 +73,7 @@ class LiteLLMProvider(LLMProvider):
         for env_name, env_val in spec.env_extras:
             resolved = env_val.replace("{api_key}", api_key)
             resolved = resolved.replace("{api_base}", effective_base)
-            os.environ.setdefault(env_name, resolved)
+            environ.setdefault(env_name, resolved)
     
     def _resolve_model(self, model: str) -> str:
         """Resolve model name by applying provider/gateway prefixes."""

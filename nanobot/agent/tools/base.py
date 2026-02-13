@@ -57,7 +57,9 @@ class Tool(ABC):
         schema = self.parameters or {}
         if schema.get("type", "object") != "object":
             raise ValueError(f"Schema must be object type, got {schema.get('type')!r}")
-        return self._validate(params, {**schema, "type": "object"}, "")
+        merged = dict(schema)
+        merged["type"] = "object"
+        return self._validate(params, merged, "")
 
     def _validate(self, val: Any, schema: dict[str, Any], path: str) -> list[str]:
         t, label = schema.get("type"), path or "parameter"

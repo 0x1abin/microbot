@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from loguru import logger
+import logging as logger
 
 
 class GroqTranscriptionProvider:

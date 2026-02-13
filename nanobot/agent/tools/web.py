@@ -5,15 +5,61 @@ import json
 import os
 import re
 from typing import Any
-from urllib.parse import urlparse
 
-import httpx
+# Prefer requests; fallback to urequests (MicroPython)
+try:
+    import requests
+except ImportError:
+    import urequests as requests
 
 from nanobot.agent.tools.base import Tool
 
+
+def _quote(s: str) -> str:
+    """URL-encode string (MicroPython compat, no urllib)."""
+    res = []
+    for c in s:
+        if c.isalnum() or c in "-_.~":
+            res.append(c)
+        elif c == " ":
+            res.append("+")
+        else:
+            res.append("%%%02X" % ord(c))
+    return "".join(res)
+
+
+def _build_url_with_params(base: str, params: dict) -> str:
+    """Append query string to URL."""
+    if not params:
+        return base
+    qs = "&".join("%s=%s" % (_quote(str(k)), _quote(str(v))) for k, v in params.items())
+    return base + ("&" if "?" in base else "?") + qs
+
+
+def _raise_for_status(r: Any) -> None:
+    """Raise on HTTP error status."""
+    sc = getattr(r, "status_code", 0)
+    if sc >= 400:
+        msg = getattr(r, "text", None) or getattr(r, "reason", str(sc))
+        raise RuntimeError("HTTP %s: %s" % (sc, msg))
+
+
+def _parse_url_scheme_netloc(url: str) -> tuple[str, str]:
+    """Parse scheme and netloc from URL without urllib (MicroPython compat)."""
+    if "://" not in url:
+        return "", ""
+    scheme, rest = url.split("://", 1)
+    scheme = scheme.lower().strip()
+    idx = -1
+    for sep in "/?":
+        i = rest.find(sep)
+        if i >= 0 and (idx < 0 or i < idx):
+            idx = i
+    netloc = rest[:idx].strip() if idx >= 0 else rest.strip()
+    return scheme, netloc
+
 # Shared constants
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_2) AppleWebKit/537.36"
-MAX_REDIRECTS = 5  # Limit redirects to prevent DoS attacks
 
 
 def _strip_tags(text: str) -> str:
@@ -33,10 +79,10 @@ def _normalize(text: str) -> str:
 def _validate_url(url: str) -> tuple[bool, str]:
     """Validate URL: must be http(s) with valid domain."""
     try:
-        p = urlparse(url)
-        if p.scheme not in ('http', 'https'):
-            return False, f"Only http/https allowed, got '{p.scheme or 'none'}'"
-        if not p.netloc:
+        scheme, netloc = _parse_url_scheme_netloc(url)
+        if scheme not in ('http', 'https'):
+            return False, f"Only http/https allowed, got '{scheme or 'none'}'"
+        if not netloc:
             return False, "Missing domain"
         return True, ""
     except Exception as e:
@@ -58,7 +104,7 @@ class WebSearchTool(Tool):
     }
     
     def __init__(self, api_key: str | None = None, max_results: int = 5):
-        self.api_key = api_key or os.environ.get("BRAVE_API_KEY", "")
+        self.api_key = api_key
         self.max_results = max_results
     
     async def execute(self, query: str, count: int | None = None, **kwargs: Any) -> str:
@@ -67,16 +113,14 @@ class WebSearchTool(Tool):
         
         try:
             n = min(max(count or self.max_results, 1), 10)
-            async with httpx.AsyncClient() as client:
-                r = await client.get(
-                    "https://api.search.brave.com/res/v1/web/search",
-                    params={"q": query, "count": n},
-                    headers={"Accept": "application/json", "X-Subscription-Token": self.api_key},
-                    timeout=10.0
-                )
-                r.raise_for_status()
+            url = "https://api.search.brave.com/res/v1/web/search"
+            headers = {"Accept": "application/json", "X-Subscription-Token": self.api_key}
+            url = _build_url_with_params(url, {"q": query, "count": n})
+            r = requests.get(url, headers=headers, timeout=10)
+            _raise_for_status(r)
+            data = r.json()
             
-            results = r.json().get("web", {}).get("results", [])
+            results = data.get("web", {}).get("results", [])
             if not results:
                 return f"No results for: {query}"
             
@@ -119,33 +163,33 @@ class WebFetchTool(Tool):
             return json.dumps({"error": f"URL validation failed: {error_msg}", "url": url})
 
         try:
-            async with httpx.AsyncClient(
-                follow_redirects=True,
-                max_redirects=MAX_REDIRECTS,
-                timeout=30.0
-            ) as client:
-                r = await client.get(url, headers={"User-Agent": USER_AGENT})
-                r.raise_for_status()
-            
-            ctype = r.headers.get("content-type", "")
-            
+            headers = {"User-Agent": USER_AGENT}
+            r = requests.get(url, headers=headers, timeout=30)
+            _raise_for_status(r)
+
+            h = getattr(r, "headers", {}) or {}
+            ctype = h.get("content-type", "") or h.get("Content-Type", "")
+            body = r.text
+            status_code = getattr(r, "status_code", 200)
+            final_url = str(getattr(r, "url", url))
+
             # JSON
             if "application/json" in ctype:
                 text, extractor = json.dumps(r.json(), indent=2), "json"
             # HTML
-            elif "text/html" in ctype or r.text[:256].lower().startswith(("<!doctype", "<html")):
-                doc = Document(r.text)
+            elif "text/html" in ctype or body[:256].lower().startswith(("<!doctype", "<html")):
+                doc = Document(body)
                 content = self._to_markdown(doc.summary()) if extractMode == "markdown" else _strip_tags(doc.summary())
                 text = f"# {doc.title()}\n\n{content}" if doc.title() else content
                 extractor = "readability"
             else:
-                text, extractor = r.text, "raw"
-            
+                text, extractor = body, "raw"
+
             truncated = len(text) > max_chars
             if truncated:
                 text = text[:max_chars]
-            
-            return json.dumps({"url": url, "finalUrl": str(r.url), "status": r.status_code,
+
+            return json.dumps({"url": url, "finalUrl": final_url, "status": status_code,
                               "extractor": extractor, "truncated": truncated, "length": len(text), "text": text})
         except Exception as e:
             return json.dumps({"error": str(e), "url": url})

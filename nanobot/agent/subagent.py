@@ -6,7 +6,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from loguru import logger
+import logging as logger
 
 from nanobot.bus.events import InboundMessage
 from nanobot.bus.queue import MessageBus

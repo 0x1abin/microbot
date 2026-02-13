@@ -1,27 +1,39 @@
 """Base LLM provider interface."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
 from typing import Any
 
 
-@dataclass
 class ToolCallRequest:
     """A tool call request from the LLM."""
-    id: str
-    name: str
-    arguments: dict[str, Any]
+
+    __slots__ = ("id", "name", "arguments")
+
+    def __init__(self, id: str, name: str, arguments: dict):
+        self.id = id
+        self.name = name
+        self.arguments = arguments
 
 
-@dataclass
 class LLMResponse:
     """Response from an LLM provider."""
-    content: str | None
-    tool_calls: list[ToolCallRequest] = field(default_factory=list)
-    finish_reason: str = "stop"
-    usage: dict[str, int] = field(default_factory=dict)
-    reasoning_content: str | None = None  # Kimi, DeepSeek-R1 etc.
-    
+
+    __slots__ = ("content", "tool_calls", "finish_reason", "usage", "reasoning_content")
+
+    def __init__(
+        self,
+        content: str | None,
+        tool_calls: list | None = None,
+        finish_reason: str = "stop",
+        usage: dict | None = None,
+        reasoning_content: str | None = None,
+    ):
+        self.content = content
+        self.tool_calls = list(tool_calls) if tool_calls is not None else []
+        self.finish_reason = finish_reason
+        self.usage = dict(usage) if usage is not None else {}
+        self.reasoning_content = reasoning_content
+
     @property
     def has_tool_calls(self) -> bool:
         """Check if response contains tool calls."""

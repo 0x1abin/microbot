@@ -308,7 +308,7 @@ def gateway(
     from nanobot.heartbeat.service import HeartbeatService
     
     if verbose:
-        import logging
+        import logging as logger
         logging.basicConfig(level=logging.DEBUG)
     
     console.print(f"{__logo__} Starting nanobot gateway on port {port}...")
@@ -418,7 +418,7 @@ def agent(
     from nanobot.config.loader import load_config
     from nanobot.bus.queue import MessageBus
     from nanobot.agent.loop import AgentLoop
-    from loguru import logger
+    import logging as logger
     
     config = load_config()
     

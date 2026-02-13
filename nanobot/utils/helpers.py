@@ -1,7 +1,11 @@
 """Utility functions for nanobot."""
 
-from pathlib import Path
 from datetime import datetime
+from nanobot.utils.path_compat import Path
+
+
+def get_home_path() -> Path:
+    return Path("./tmp_home")
 
 
 def ensure_dir(path: Path) -> Path:
@@ -12,7 +16,7 @@ def ensure_dir(path: Path) -> Path:
 
 def get_data_path() -> Path:
     """Get the nanobot data directory (~/.nanobot)."""
-    return ensure_dir(Path.home() / ".nanobot")
+    return ensure_dir(get_home_path() / ".nanobot")
 
 
 def get_workspace_path(workspace: str | None = None) -> Path:
@@ -26,9 +30,9 @@ def get_workspace_path(workspace: str | None = None) -> Path:
         Expanded and ensured workspace path.
     """
     if workspace:
-        path = Path(workspace).expanduser()
+        path = Path(workspace)
     else:
-        path = Path.home() / ".nanobot" / "workspace"
+        path = get_home_path() / ".nanobot" / "workspace"
     return ensure_dir(path)
 
 
@@ -41,6 +45,26 @@ def get_skills_path(workspace: Path | None = None) -> Path:
     """Get the skills directory within the workspace."""
     ws = workspace or get_workspace_path()
     return ensure_dir(ws / "skills")
+
+
+def format_now() -> tuple[str, str]:
+    """
+    Format current time and timezone; avoids strftime for MicroPython compatibility.
+    Returns (now_str, tz_str) e.g. ("2025-02-14 12:00 (Friday)", "UTC").
+    """
+    import time as _time
+    dt = datetime.now()
+    # Manual format: YYYY-MM-DD HH:MM (Weekday) - no strftime (not in MicroPython)
+    weekday_names = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+    wd = weekday_names[dt.weekday()] if 0 <= dt.weekday() < 7 else ""
+    now = f"{dt.year:04d}-{dt.month:02d}-{dt.day:02d} {dt.hour:02d}:{dt.minute:02d} ({wd})"
+    tz = "UTC"
+    if hasattr(_time, "strftime"):
+        try:
+            tz = _time.strftime("%Z") or tz
+        except Exception:
+            pass
+    return now, tz
 
 
 def timestamp() -> str:

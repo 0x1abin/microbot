@@ -5,7 +5,7 @@ import json
 import time
 from typing import Any
 
-from loguru import logger
+import logging as logger
 import httpx
 
 from nanobot.bus.events import OutboundMessage

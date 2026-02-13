@@ -7,7 +7,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable, Coroutine
 
-from loguru import logger
+import logging as logger
 
 from nanobot.cron.types import CronJob, CronJobState, CronPayload, CronSchedule, CronStore
 

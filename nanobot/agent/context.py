@@ -8,6 +8,7 @@ from typing import Any
 
 from nanobot.agent.memory import MemoryStore
 from nanobot.agent.skills import SkillsLoader
+from nanobot.utils import format_now
 
 
 class ContextBuilder:
@@ -72,11 +73,8 @@ Skills with available="false" need dependencies installed first - you can try in
     
     def _get_identity(self) -> str:
         """Get the core identity section."""
-        from datetime import datetime
-        import time as _time
-        now = datetime.now().strftime("%Y-%m-%d %H:%M (%A)")
-        tz = _time.strftime("%Z") or "UTC"
-        workspace_path = str(self.workspace.expanduser().resolve())
+        now, tz = format_now()
+        workspace_path = str(self.workspace.resolve())
         system = platform.system()
         runtime = f"{'macOS' if system == 'Darwin' else system} {platform.machine()}, Python {platform.python_version()}"
         

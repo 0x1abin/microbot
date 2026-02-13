@@ -1,11 +1,44 @@
 """Async message queue for decoupled channel-agent communication."""
 
 import asyncio
+from collections import deque
 from typing import Callable, Awaitable
 
-from loguru import logger
+import logging as logger
 
 from nanobot.bus.events import InboundMessage, OutboundMessage
+
+
+class AsyncQueue:
+    """
+    Minimal async queue compatible with MicroPython.
+    
+    MicroPython's asyncio lacks Queue, so we build one
+    using asyncio.Event and collections.deque.
+    """
+
+    def __init__(self):
+        self._queue = deque((), 100)
+        self._event = asyncio.Event()
+
+    async def put(self, item):
+        """Put an item into the queue."""
+        self._queue.append(item)
+        self._event.set()
+
+    async def get(self):
+        """Remove and return an item. Blocks until one is available."""
+        while not self._queue:
+            self._event.clear()
+            await self._event.wait()
+        item = self._queue.popleft()
+        if not self._queue:
+            self._event.clear()
+        return item
+
+    def qsize(self) -> int:
+        """Return the number of items in the queue."""
+        return len(self._queue)
 
 
 class MessageBus:
@@ -17,8 +50,8 @@ class MessageBus:
     """
     
     def __init__(self):
-        self.inbound: asyncio.Queue[InboundMessage] = asyncio.Queue()
-        self.outbound: asyncio.Queue[OutboundMessage] = asyncio.Queue()
+        self.inbound = AsyncQueue()
+        self.outbound = AsyncQueue()
         self._outbound_subscribers: dict[str, list[Callable[[OutboundMessage], Awaitable[None]]]] = {}
         self._running = False
     

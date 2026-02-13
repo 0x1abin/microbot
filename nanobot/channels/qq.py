@@ -4,7 +4,7 @@ import asyncio
 from collections import deque
 from typing import TYPE_CHECKING
 
-from loguru import logger
+import logging as logger
 
 from nanobot.bus.events import OutboundMessage
 from nanobot.bus.queue import MessageBus

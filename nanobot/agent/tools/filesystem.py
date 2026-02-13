@@ -1,7 +1,8 @@
 """File system tools: read, write, edit."""
 
-from pathlib import Path
 from typing import Any
+
+from nanobot.utils import Path
 
 from nanobot.agent.tools.base import Tool
 

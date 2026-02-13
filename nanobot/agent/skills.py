@@ -4,7 +4,8 @@ import json
 import os
 import re
 import shutil
-from pathlib import Path
+
+from nanobot.utils import Path
 
 # Default builtin skills directory (relative to this file)
 BUILTIN_SKILLS_DIR = Path(__file__).parent.parent / "skills"

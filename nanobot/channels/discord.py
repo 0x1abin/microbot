@@ -7,12 +7,13 @@ from typing import Any
 
 import httpx
 import websockets
-from loguru import logger
+import logging as logger
 
 from nanobot.bus.events import OutboundMessage
 from nanobot.bus.queue import MessageBus
 from nanobot.channels.base import BaseChannel
 from nanobot.config.schema import DiscordConfig
+from nanobot.utils.helpers import get_home_path
 
 
 DISCORD_API_BASE = "https://discord.com/api/v10"
@@ -199,7 +200,7 @@ class DiscordChannel(BaseChannel):
 
         content_parts = [content] if content else []
         media_paths: list[str] = []
-        media_dir = Path.home() / ".nanobot" / "media"
+        media_dir = get_home_path() / ".nanobot" / "media"
 
         for attachment in payload.get("attachments") or []:
             url = attachment.get("url")

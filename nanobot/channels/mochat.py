@@ -5,12 +5,11 @@ from __future__ import annotations
 import asyncio
 import json
 from collections import deque
-from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
 import httpx
-from loguru import logger
+import logging as logger
 
 from nanobot.bus.events import OutboundMessage
 from nanobot.bus.queue import MessageBus
@@ -36,34 +35,57 @@ CURSOR_SAVE_DEBOUNCE_S = 0.5
 
 
 # ---------------------------------------------------------------------------
-# Data classes
+# Data classes (plain classes with __slots__ for MicroPython)
 # ---------------------------------------------------------------------------
 
-@dataclass
 class MochatBufferedEntry:
     """Buffered inbound entry for delayed dispatch."""
-    raw_body: str
-    author: str
-    sender_name: str = ""
-    sender_username: str = ""
-    timestamp: int | None = None
-    message_id: str = ""
-    group_id: str = ""
+
+    __slots__ = ("raw_body", "author", "sender_name", "sender_username", "timestamp", "message_id", "group_id")
+
+    def __init__(
+        self,
+        raw_body: str,
+        author: str,
+        sender_name: str = "",
+        sender_username: str = "",
+        timestamp: int | None = None,
+        message_id: str = "",
+        group_id: str = "",
+    ):
+        self.raw_body = raw_body
+        self.author = author
+        self.sender_name = sender_name
+        self.sender_username = sender_username
+        self.timestamp = timestamp
+        self.message_id = message_id
+        self.group_id = group_id
 
 
-@dataclass
 class DelayState:
     """Per-target delayed message state."""
-    entries: list[MochatBufferedEntry] = field(default_factory=list)
-    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
-    timer: asyncio.Task | None = None
+
+    __slots__ = ("entries", "lock", "timer")
+
+    def __init__(
+        self,
+        entries: list | None = None,
+        lock: asyncio.Lock | None = None,
+        timer: asyncio.Task | None = None,
+    ):
+        self.entries = list(entries) if entries is not None else []
+        self.lock = asyncio.Lock() if lock is None else lock
+        self.timer = timer
 
 
-@dataclass
 class MochatTarget:
     """Outbound target resolution result."""
-    id: str
-    is_panel: bool
+
+    __slots__ = ("id", "is_panel")
+
+    def __init__(self, id: str, is_panel: bool):
+        self.id = id
+        self.is_panel = is_panel
 
 
 # ---------------------------------------------------------------------------
