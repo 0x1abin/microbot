@@ -1,12 +1,11 @@
-"""Path compatibility for MicroPython: stdlib Path may lack iterdir()."""
+"""Path compatibility for MicroPython: extend stdlib Path with missing methods."""
 
 from pathlib import Path as _Path
 import os
 
 class Path(_Path):
     """
-    Path subclass that implements iterdir() using os.listdir().
-    Use this instead of pathlib.Path when running on MicroPython.
+    Path subclass that adds missing methods for MicroPython compatibility.
     Overrides parent and __truediv__ so derived paths stay as this class.
     """
 
@@ -14,6 +13,20 @@ class Path(_Path):
         """Iterate over directory entries; compatible with MicroPython."""
         for name in os.listdir(str(self)):
             yield self / name
+
+    def expanduser(self):
+        """Expand ~ to home directory. Return self unchanged if HOME is
+        not available (common on embedded MicroPython)."""
+        p = str(self)
+        if p.startswith("~"):
+            home = os.getenv("HOME") if hasattr(os, "getenv") else None
+            if home:
+                return type(self)(home + p[1:])
+        return self
+
+    def resolve(self):
+        """Return an absolute Path object."""
+        return type(self)(super().resolve())
 
     @property
     def parent(self) -> "Path":
