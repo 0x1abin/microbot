@@ -1,10 +1,22 @@
-"""File system tools: read, write, edit."""
+"""File system tools for MicroPython embedded environment.
 
+Reuses the lightweight ``pathlib.Path`` from ``pathlib`` which
+provides ``exists``, ``is_file``, ``is_dir``, ``read_text``,
+``write_text``, ``mkdir``, ``parent``, ``name``, ``resolve`` etc.
+"""
+
+import os
 from typing import Any
 
 from nanobot.utils import Path
 
 from nanobot.agent.tools.base import Tool
+
+# MicroPython does not define PermissionError; fall back to OSError
+try:
+    PermissionError
+except NameError:
+    PermissionError = OSError
 
 
 def _resolve_path(path: str, allowed_dir: Path | None = None) -> Path:
@@ -53,7 +65,7 @@ class ReadFileTool(Tool):
             content = file_path.read_text(encoding="utf-8")
             return content
         except PermissionError as e:
-            return f"Error: {e}"
+            return "Error: %s" % str(e)
         except Exception as e:
             return f"Error reading file: {str(e)}"
 
@@ -96,7 +108,7 @@ class WriteFileTool(Tool):
             file_path.write_text(content, encoding="utf-8")
             return f"Successfully wrote {len(content)} bytes to {path}"
         except PermissionError as e:
-            return f"Error: {e}"
+            return "Error: %s" % str(e)
         except Exception as e:
             return f"Error writing file: {str(e)}"
 
@@ -157,7 +169,7 @@ class EditFileTool(Tool):
             
             return f"Successfully edited {path}"
         except PermissionError as e:
-            return f"Error: {e}"
+            return "Error: %s" % str(e)
         except Exception as e:
             return f"Error editing file: {str(e)}"
 
@@ -193,20 +205,26 @@ class ListDirTool(Tool):
         try:
             dir_path = _resolve_path(path, self._allowed_dir)
             if not dir_path.exists():
-                return f"Error: Directory not found: {path}"
+                return "Error: Directory not found: %s" % path
             if not dir_path.is_dir():
-                return f"Error: Not a directory: {path}"
-            
+                return "Error: Not a directory: %s" % path
+
+            entries = sorted(os.listdir(str(dir_path)))
             items = []
-            for item in sorted(dir_path.iterdir()):
-                prefix = "📁 " if item.is_dir() else "📄 "
-                items.append(f"{prefix}{item.name}")
-            
+            for name in entries:
+                child = dir_path / name
+                is_d = child.is_dir()
+                try:
+                    size = child.stat()[6]
+                except OSError:
+                    size = 0
+                prefix = "d" if is_d else "-"
+                items.append("%s %7d  %s" % (prefix, size, name))
+
             if not items:
-                return f"Directory {path} is empty"
-            
+                return "Directory %s is empty" % path
             return "\n".join(items)
         except PermissionError as e:
-            return f"Error: {e}"
+            return "Error: %s" % str(e)
         except Exception as e:
-            return f"Error listing directory: {str(e)}"
+            return "Error listing directory: %s" % str(e)
