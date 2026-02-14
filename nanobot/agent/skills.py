@@ -172,7 +172,7 @@ class SkillsLoader:
         try:
             data = json.loads(raw)
             return data.get("nanobot", {}) if isinstance(data, dict) else {}
-        except (json.JSONDecodeError, TypeError):
+        except Exception as e:
             return {}
     
     def _check_requirements(self, skill_meta: dict) -> bool:
