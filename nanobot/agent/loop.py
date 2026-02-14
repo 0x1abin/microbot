@@ -212,14 +212,14 @@ class AgentLoop:
         
         while iteration < self.max_iterations:
             iteration += 1
-            
+
             # Call LLM
             response = await self.provider.chat(
                 messages=messages,
                 tools=self.tools.get_definitions(),
                 model=self.model
             )
-            
+
             # Handle tool calls
             if response.has_tool_calls:
                 # Add assistant message with tool calls
@@ -242,7 +242,7 @@ class AgentLoop:
                 # Execute tools
                 for tool_call in response.tool_calls:
                     tools_used.append(tool_call.name)
-                    args_str = json.dumps(tool_call.arguments, ensure_ascii=False)
+                    args_str = json.dumps(tool_call.arguments)
                     logger.info(f"Tool call: {tool_call.name}({args_str[:200]})")
                     result = await self.tools.execute(tool_call.name, tool_call.arguments)
                     messages = self.context.add_tool_result(
@@ -353,7 +353,7 @@ class AgentLoop:
                 )
                 
                 for tool_call in response.tool_calls:
-                    args_str = json.dumps(tool_call.arguments, ensure_ascii=False)
+                    args_str = json.dumps(tool_call.arguments)
                     logger.info(f"Tool call: {tool_call.name}({args_str[:200]})")
                     result = await self.tools.execute(tool_call.name, tool_call.arguments)
                     messages = self.context.add_tool_result(
