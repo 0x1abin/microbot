@@ -1,7 +1,7 @@
 from sys import platform, version
 
 def system() -> str:
-    return 'FreeRTOS'
+    return 'Embedded system'
 
 def machine() -> str:
     return platform
